@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#101827">
+<link rel="manifest" href="manifest.webmanifest">
+<title>Disney Base</title>
+<style>
+:root{color-scheme:dark;--bg:#101827;--panel:#1b2638;--line:#34445c;--accent:#78b7ff;--txt:#f4f7fb}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN",sans-serif;padding:18px;max-width:760px;margin:auto}
+h1{font-size:28px;margin:10px 0 4px}p.sub{color:#b8c5d6;margin-top:0}.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;margin:14px 0}
+label{display:block;font-weight:600;margin:12px 0 6px}input,select,textarea,button{font:inherit;width:100%;border-radius:10px;border:1px solid var(--line);padding:12px;background:#101827;color:var(--txt)}textarea{min-height:85px}button{background:#2467aa;border:0;font-weight:700;margin-top:12px}.secondary{background:#34445c}.row{display:flex;gap:8px}.row>*{flex:1}.facility-row{display:flex;gap:8px;align-items:center;margin:7px 0}.facility-row input{width:auto}.entry{border-top:1px solid var(--line);padding:12px 0}.muted{color:#aab7c8;font-size:13px}.pill{display:inline-block;background:#34445c;border-radius:20px;padding:3px 9px;font-size:12px;margin-right:5px}
+</style>
+</head>
+<body>
+<h1>🏰 Disney Base</h1><p class="sub">パーク無線・施設状況 記録ノート</p>
+<section class="card">
+<h2>記録を追加</h2>
+<label for="park">パーク</label><select id="park"><option>東京ディズニーランド</option><option>東京ディズニーシー</option></select>
+<label for="number">無線番号</label><input id="number" inputmode="numeric" placeholder="例：101">
+<label for="facility">施設名</label><input id="facility" list="facilities" placeholder="施設名を入力・検索"><datalist id="facilities"><option>ワールドバザール</option><option>アドベンチャーランド</option><option>ウエスタンランド</option><option>ファンタジーランド</option><option>トゥーンタウン</option><option>トゥモローランド</option><option>メディテレーニアンハーバー</option><option>アメリカンウォーターフロント</option><option>ポートディスカバリー</option><option>ロストリバーデルタ</option><option>ファンタジースプリングス</option></datalist>
+<label for="status">状況</label><select id="status"><option>通常運営</option><option>一時停止</option><option>運営再開</option><option>システム調整</option><option>一時休止</option><option>確認中</option><option>その他</option></select>
+<label for="memo">メモ</label><textarea id="memo" placeholder="聞こえた内容など"></textarea>
+<button id="save">記録を保存</button>
+<p class="muted">日時は保存時に自動記録されます。施設名・番号の対応は未確認のため、実際に聞いた内容を入力してください。</p>
+</section>
+<section class="card"><h2>記録一覧</h2><input id="filter" placeholder="番号・施設名・メモで検索"><div id="history"></div><div class="row"><button class="secondary" id="export">バックアップ</button><button class="secondary" id="importBtn">復元</button></div><input type="file" id="importFile" accept="application/json" hidden></section>
+<section class="card"><label class="facility-row"><input type="checkbox" id="dayMode"> パーク滞在日モード</label><p class="muted">この試作品では通知時刻の設定・プッシュ通知機能はまだ実装されていません。</p></section>
+<script>
+const KEY='disneyBaseRecords';
+let records=JSON.parse(localStorage.getItem(KEY)||'[]');
+const $=id=>document.getElementById(id);
+function render(){const q=$('filter').value.toLowerCase();$('history').innerHTML=records.filter(r=>[r.number,r.facility,r.memo,r.status,r.park].join(' ').toLowerCase().includes(q)).slice().reverse().map(r=>`<div class="entry"><strong>${esc(r.number||'番号未入力')}・${esc(r.facility||'施設未入力')}</strong><div><span class="pill">${esc(r.park)}</span><span class="pill">${esc(r.status)}</span></div><div>${esc(r.memo)}</div><div class="muted">${new Date(r.time).toLocaleString('ja-JP')}</div></div>`).join('')||'<p class="muted">まだ記録はありません。</p>'}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+$('save').onclick=()=>{records.push({park:$('park').value,number:$('number').value.trim(),facility:$('facility').value.trim(),status:$('status').value,memo:$('memo').value.trim(),time:new Date().toISOString()});localStorage.setItem(KEY,JSON.stringify(records));$('number').value='';$('facility').value='';$('memo').value='';render()};
+$('filter').oninput=render;
+$('export').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(records,null,2)],{type:'application/json'}));a.download='disney-base-backup.json';a.click();URL.revokeObjectURL(a.href)};
+$('importBtn').onclick=()=>$('importFile').click();
+$('importFile').onchange=async e=>{try{const data=JSON.parse(await e.target.files[0].text());if(Array.isArray(data)){records=data;localStorage.setItem(KEY,JSON.stringify(records));render();alert('復元しました')}}catch{alert('ファイルを読み込めませんでした')}};
+if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
+render();
+</script>
+</body></html>
